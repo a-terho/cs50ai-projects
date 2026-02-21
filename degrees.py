@@ -91,7 +91,6 @@ def shortest_path(source, target):
 
     If no possible path, returns None.
     """
-
     # States are represented as (movie_id, person_id) tuples
     # Nodes contain additional information on parent nodes and action
     # Neighbors is a list of tuples and it includes source itself, too
@@ -105,9 +104,18 @@ def shortest_path(source, target):
     frontier = QueueFrontier()
     neighbors = neighbors_for_person(source)
     for neighbor in neighbors:
-        # TODO Check whether neighbor state is the goal state here
 
-        frontier.add(Node(state=neighbor, parent=None, action=None))
+        # First, create the new node
+        new_node = Node(state=neighbor, parent=None, action=None)
+
+        # If current neighbor is the goal state, just create path to this node
+        person_id = neighbor[1]
+        if person_id == target:
+            return create_path_to_root(new_node)
+
+        # Otherwise, add it to the frontier
+        else:
+            frontier.add(new_node)
 
     # Explored set will contain all explored states (sic! not nodes)
     explored = set()
@@ -123,19 +131,7 @@ def shortest_path(source, target):
 
         # If selected node contains the goal state (target), there is a path
         if person_id == target:
-
-            # Backtrack path back to source, initialize with current state
-            path = [node.state]
-
-            # While there are parent nodes, traverse through them
-            parent_node = node.parent
-            while parent_node:
-
-                # Add parent state to the top of the list
-                path = [parent_node.state] + path
-                parent_node = parent_node.parent
-
-            return path
+            return create_path_to_root(node)
 
         # Add current state to explored states
         explored.add(node.state)
@@ -143,15 +139,43 @@ def shortest_path(source, target):
         # Expand the neighbor states of current node
         neighbor_states = neighbors_for_person(person_id)
         for neighbor_state in neighbor_states:
-            # TODO Check whether neighbor state is the goal state here
+
+            # Create new node for the frontier, parent is the current node
+            new_node = Node(state=neighbor_state, parent=node, action=None)
+
+            # If current neighbor is the goal state, just create path to this node
+            person_id = neighbor_state[1]
+            if person_id == target:
+                return create_path_to_root(new_node)
 
             # Only add current node to the frontier if it hasn't been
-            # explored already and it is not already in the frontier
+            #  explored already and it is not already in the frontier
             if (
                 not frontier.contains_state(neighbor_state)
                 and not neighbor_state in explored
             ):
-                frontier.add(Node(state=neighbor_state, parent=node, action=None))
+                frontier.add(new_node)
+
+
+def create_path_to_root(goal_node):
+    """
+    Returns the route from root node to goal_node.
+    Root node is the node with no parents.
+
+    Assumes there is a route to root from goal_node.
+    """
+    # Initialize path with goal node state
+    path = [goal_node.state]
+
+    # While there are parent nodes, traverse through them
+    parent_node = goal_node.parent
+    while parent_node:
+
+        # Add parent state to the head of the list
+        path = [parent_node.state] + path
+        parent_node = parent_node.parent
+
+    return path
 
 
 def person_id_for_name(name):
