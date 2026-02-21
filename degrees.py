@@ -92,8 +92,66 @@ def shortest_path(source, target):
     If no possible path, returns None.
     """
 
-    # TODO
-    raise NotImplementedError
+    # States are represented as (movie_id, person_id) tuples
+    # Nodes contain additional information on parent nodes and action
+    # Neighbors is a list of tuples and it includes source itself, too
+
+    # Handle the edge case where source = target
+    if source == target:
+        return []
+
+    # Create a search frontier and add the initial states as nodes to it
+    # Choose queue frontier (BFS) to make sure we find the shortest route
+    frontier = QueueFrontier()
+    neighbors = neighbors_for_person(source)
+    for neighbor in neighbors:
+        # TODO Check whether neighbor state is the goal state here
+
+        frontier.add(Node(state=neighbor, parent=None, action=None))
+
+    # Explored set will contain all explored states (sic! not nodes)
+    explored = set()
+
+    while True:
+        # If frontier is empty, there is no solution
+        if frontier.empty():
+            return None
+
+        # Grab next node from the frontier
+        node = frontier.remove()
+        person_id = node.state[1]
+
+        # If selected node contains the goal state (target), there is a path
+        if person_id == target:
+
+            # Backtrack path back to source, initialize with current state
+            path = [node.state]
+
+            # While there are parent nodes, traverse through them
+            parent_node = node.parent
+            while parent_node:
+
+                # Add parent state to the top of the list
+                path = [parent_node.state] + path
+                parent_node = parent_node.parent
+
+            return path
+
+        # Add current state to explored states
+        explored.add(node.state)
+
+        # Expand the neighbor states of current node
+        neighbor_states = neighbors_for_person(person_id)
+        for neighbor_state in neighbor_states:
+            # TODO Check whether neighbor state is the goal state here
+
+            # Only add current node to the frontier if it hasn't been
+            # explored already and it is not already in the frontier
+            if (
+                not frontier.contains_state(neighbor_state)
+                and not neighbor_state in explored
+            ):
+                frontier.add(Node(state=neighbor_state, parent=node, action=None))
 
 
 def person_id_for_name(name):
