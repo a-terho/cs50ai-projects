@@ -130,8 +130,8 @@ def neighbors_for_person(person_id):
     movie_ids = people[person_id]["movies"]
     neighbors = set()
     for movie_id in movie_ids:
-        for person_id in movies[movie_id]["stars"]:
-            neighbors.add((movie_id, person_id))
+        for star_id in movies[movie_id]["stars"]:  # edited variable name for clarity
+            neighbors.add((movie_id, star_id))
     return neighbors
 
 
