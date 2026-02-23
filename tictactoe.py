@@ -17,9 +17,6 @@ def initial_state():
     return [[EMPTY, EMPTY, EMPTY],
             [EMPTY, EMPTY, EMPTY],
             [EMPTY, EMPTY, EMPTY]]
-    # return [[EMPTY, EMPTY, EMPTY],
-    #         [X, O, O],
-    #         [EMPTY, X, EMPTY]]
 # fmt: on
 
 
@@ -114,10 +111,6 @@ def winner(board):
             and first_symbol != EMPTY
         ):
             return first_symbol
-    # for row in board:
-    #     first_symbol = row[0]
-    #     if all(first_symbol == symbol for symbol in row) and first_symbol != EMPTY:
-    #         return first_symbol
 
     # Column-based loop
     for j in range(column_count):
@@ -188,25 +181,23 @@ def minimax(board):
         return None
 
     # First, get the current player and whether they are min (-1) or max (1)
-    player_symbol = player(board)
-    min_max = 1 if player_symbol == X else -1
+    min_max = 1 if player(board) == X else -1
 
     # Loop through all the possible actions this board can have. While doing
-    #  that, calculate either the max or min value of these actions if taken.
+    #  that, calculate either the max or min value for each of these actions.
     action_values = []
     for action in actions(board):
 
-        # For max, find the biggest possible value with this action
+        # Assume the opponent wants to play optimally
+        # For max player, opponent wants the lowest value possible
         if min_max == 1:
-            value = max_value(result(board, action))
-
-        # For min, find the smallest possible value with this action
-        elif min_max == -1:
             value = min_value(result(board, action))
 
-        action_values.append((value, action))
+        # For min player, opponent wants the highest value possible
+        elif min_max == -1:
+            value = max_value(result(board, action))
 
-    # print(action_values)
+        action_values.append((value, action))
 
     # Finally, out of all actions, choose only the best one for current player
     # action_values is a list of tuples with action value at [0] and action at [1]
