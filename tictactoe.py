@@ -17,6 +17,9 @@ def initial_state():
     return [[EMPTY, EMPTY, EMPTY],
             [EMPTY, EMPTY, EMPTY],
             [EMPTY, EMPTY, EMPTY]]
+    # return [[EMPTY, EMPTY, EMPTY],
+    #         [X, O, O],
+    #         [EMPTY, X, EMPTY]]
 # fmt: on
 
 
@@ -188,65 +191,61 @@ def minimax(board):
     player_symbol = player(board)
     min_max = 1 if player_symbol == X else -1
 
-    # Find the allowed actions for current board and calculate the value of
-    #  each of the resulting boards. Bind actions with their values in the
-    #  list of choices.
-    allowed_actions = actions(board)
-    choices = []
-    for action in allowed_actions:
-        board_value = calculate_value(result(board, action), min_max)
+    # Loop through all the possible actions this board can have. While doing
+    #  that, calculate either the max or min value of these actions if taken.
+    action_values = []
+    for action in actions(board):
 
-        # choices is list of tuples with board value at [0] and action at [1]
-        choices.append((board_value, action))
+        # For max, find the biggest possible value with this action
+        if min_max == 1:
+            value = max_value(result(board, action))
 
-    # print(f"Player {player_symbol} with min_max {min_max}")
-    # print(choices)
+        # For min, find the smallest possible value with this action
+        elif min_max == -1:
+            value = min_value(result(board, action))
 
+        action_values.append((value, action))
+
+    # print(action_values)
+
+    # Finally, out of all actions, choose only the best one for current player
+    # action_values is a list of tuples with action value at [0] and action at [1]
     if min_max == 1:
-        # Find the highest board value, and return corresponding action
-        return max(choices, key=lambda cell: cell[0])[1]
+        return max(action_values, key=lambda cell: cell[0])[1]
 
     elif min_max == -1:
-        # Find the lowest board value, and return corresponding action
-        return min(choices, key=lambda cell: cell[0])[1]
+        return min(action_values, key=lambda cell: cell[0])[1]
 
 
-def calculate_value(board, min_max):
-    """
-    Calculates the value of given board. It can be either -1, 0 or 1.
-
-    Recursively checks the value of any non-terminal boards.
-    """
-
-    if not (min_max == 1 or min_max == -1):
-        raise Exception("unexpected error")
-
-    # Because this is a recursive function, first define the exit clause
-    # Value of a terminal board is its value given by the utility function
+def max_value(board):
+    # If this board has no more actions, return its value
     if terminal(board):
         return utility(board)
 
-    # Find the allowed actions for the current board and
-    #  construct the boards resulting from those actions
-    allowed_actions = actions(board)
-    board_values = []
-    for action in allowed_actions:
-        resulting_board = result(board, action)
+    # The currently highest value is infinitely small
+    value = -math.inf
 
-        # For any non-terminal board, calculate the value of that board
-        #  recursively while also shifting perspective at each recursion
-        board_value = calculate_value(resulting_board, min_max * (-1))
-        board_values.append(board_value)
+    # For all allowed actions on this board...
+    for action in actions(board):
 
-    # If player is max, current board value is the highest value of its results
-    if min_max == 1:
-        return max(board_values)
+        # Select the biggest of current max and following min
+        value = max(value, min_value(result(board, action)))
 
-    # Otherwise if player is min, current board value is the lowest of its results
-    elif min_max == -1:
-        return min(board_values)
+    return value
 
-    # # If resulting board is a terminal state, calculate its value with utility
-    # if terminal(resulting_board):
-    #     board_value = utility(resulting_board)
-    # Otherwise, traverse further into the resulting boards, shifting perspective
+
+def min_value(board):
+    # If this board has no more actions, return its value
+    if terminal(board):
+        return utility(board)
+
+    # The currently smallest value is infinitely big
+    value = math.inf
+
+    # For all allowed actions on this board...
+    for action in actions(board):
+
+        # Select the smallest of current min and following max
+        value = min(value, max_value(result(board, action)))
+
+    return value
