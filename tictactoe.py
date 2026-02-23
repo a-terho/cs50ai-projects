@@ -181,34 +181,47 @@ def minimax(board):
         return None
 
     # First, get the current player and whether they are min (-1) or max (1)
-    min_max = 1 if player(board) == X else -1
+    min_max = "max" if player(board) == X else "min"
 
     # Loop through all the possible actions this board can have. While doing
     #  that, calculate either the max or min value for each of these actions.
     action_values = []
+    best_so_far = None
     for action in actions(board):
 
-        # Assume the opponent wants to play optimally
+        # We will assume the opponent wants to play optimally
         # For max player, opponent wants the lowest value possible
-        if min_max == 1:
-            value = min_value(result(board, action))
+        if min_max == "max":
+            value = min_value(result(board, action), best_so_far, prune="lower")
+
+            # For max player, keep track of the highest low value so far
+            if best_so_far is not None and value > best_so_far:
+                best_so_far = value
 
         # For min player, opponent wants the highest value possible
-        elif min_max == -1:
-            value = max_value(result(board, action))
+        elif min_max == "min":
+            value = max_value(result(board, action), best_so_far, prune="higher")
+
+            # For min player, keep track of the lowest high value so far
+            if best_so_far is not None and value < best_so_far:
+                best_so_far = value
+
+        # This is for alfa-beta pruning (best_so_far = alfa), initialization
+        if best_so_far is None:
+            best_so_far = value
 
         action_values.append((value, action))
 
     # Finally, out of all actions, choose only the best one for current player
     # action_values is a list of tuples with action value at [0] and action at [1]
-    if min_max == 1:
+    if min_max == "max":
         return max(action_values, key=lambda cell: cell[0])[1]
 
-    elif min_max == -1:
+    elif min_max == "min":
         return min(action_values, key=lambda cell: cell[0])[1]
 
 
-def max_value(board):
+def max_value(board, best_so_far, prune):
     # If this board has no more actions, return its value
     if terminal(board):
         return utility(board)
@@ -220,12 +233,19 @@ def max_value(board):
     for action in actions(board):
 
         # Select the biggest of current max and following min
-        value = max(value, min_value(result(board, action)))
+        value = max(value, min_value(result(board, action), best_so_far, prune))
+
+        # If this value is higher than the current highest, there is
+        #  a new higher high in this board. If pruning is active, we
+        #  can stop looking further because this board will not be
+        #  chosen when we are trying to look for the lowest value.
+        if best_so_far is not None and value > best_so_far and prune == "higher":
+            break
 
     return value
 
 
-def min_value(board):
+def min_value(board, best_so_far, prune):
     # If this board has no more actions, return its value
     if terminal(board):
         return utility(board)
@@ -237,6 +257,13 @@ def min_value(board):
     for action in actions(board):
 
         # Select the smallest of current min and following max
-        value = min(value, max_value(result(board, action)))
+        value = min(value, max_value(result(board, action), best_so_far, prune))
+
+        # If this value is lower than the current lowest, there is
+        #  a new lower low in this board. If pruning is active, we
+        #  can stop looking further because this board will not be
+        #  chosen when we are trying to look for the highest value.
+        if best_so_far is not None and value < best_so_far and prune == "lower":
+            break
 
     return value
