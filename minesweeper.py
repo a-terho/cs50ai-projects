@@ -107,10 +107,8 @@ class Sentence:
         Returns the set of all cells in self.cells known to be mines.
         """
 
-        # If the size of the self.cells is equal to the mine count
-        #  in that set, then each item in the set is a mine
+        # Only if all the cells are marked as mines, are all mines known
         if len(self.cells) == self.count:
-            print("Returning", len(self.cells), "mines...")
             return self.cells
 
         # Otherwise, there is no 100 % certainty for which of the
@@ -123,8 +121,7 @@ class Sentence:
         Returns the set of all cells in self.cells known to be safe.
         """
 
-        # If the self.cells does not have any mines (mine count = 0),
-        #  then each item in the set is safe
+        # Only if there are no mines in the set, all cells are safe
         if self.count == 0:
             return self.cells
 
@@ -140,19 +137,12 @@ class Sentence:
         """
 
         if cell in self.cells:
-            # If this sentence already contains only the information that
-            #  this single cell is mine, there is no need to do anything.
-            # BUG Should this be the action?
-            # if self.count == 1 and len(self.cells) == 1:
 
             # Only mark sentences that are not already full of mines
             if len(self.cells) == self.count:
-                print("Not going to remove", cell, "from this sentence full of mines")
                 return
 
-            # Otherwise, there is something to update. We want to remove
-            #  that mine cell from the set and update the count of mines
-            #  in this set accordingly.
+            # Remove mine cell from the set and update mine count accordingly
             self.cells.remove(cell)
             self.count -= 1
 
@@ -166,17 +156,12 @@ class Sentence:
         """
 
         if cell in self.cells:
-            # If this sentence already contains only the information that
-            #  this single cell is safe, there is no need to do anything.
-            # BUG Should this be the action?
-            # if self.count == 0 and len(self.cells) == 1:
 
             # Only mark safes in sentences that have mines in them
             if self.count == 0:
                 return
 
-            # Otherwise, there is something to update. We want to remove
-            #  that safe cell from the set. Mine count stays the same.
+            # Remove the safe cell from this sentence, nothing else to update
             self.cells.remove(cell)
 
         # If provided cell is not in self.cells, do nothing
@@ -209,6 +194,7 @@ class MinesweeperAI:
         Marks a cell as a mine, and updates all knowledge
         to mark that cell as a mine as well.
         """
+
         self.mines.add(cell)
         for sentence in self.knowledge:
             sentence.mark_mine(cell)
@@ -218,6 +204,7 @@ class MinesweeperAI:
         Marks a cell as safe, and updates all knowledge
         to mark that cell as safe as well.
         """
+
         self.safes.add(cell)
         for sentence in self.knowledge:
             sentence.mark_safe(cell)
@@ -238,14 +225,11 @@ class MinesweeperAI:
                if they can be inferred from existing knowledge
         """
 
-        print("Plannning to add knowledge:", cell, count, "...")
-        print("Inferred mines thus far:", self.mines)
-
         # Add current cell as one of the moves made
         self.moves_made.add(cell)
 
         # Mark current cell as a safe cell
-        # Method will propagate this knowledge to other sentences, too
+        # Method will propagate the knowledge to all other sentences, too
         self.mark_safe(cell)
 
         # To contruct the sentence, we need to know the neigbouring
@@ -257,8 +241,6 @@ class MinesweeperAI:
         neighbours = self.neighbours(cell)
         cells = neighbours - self.safes
 
-        # print("Unexplored neighbour cells:", cells, "size:", len(cells))
-
         # Now the set contains only the unexplored cells, some of which
         #  could be mines. We can check whether any of the known mines
         #  are within this set using the intersection operator.
@@ -267,78 +249,30 @@ class MinesweeperAI:
         # If there are any known mines in this set, we can just remove
         #  them from this sentence as it does not bring new information
         if known_mine_cells:
-            print(
-                "Planning to add:",
-                cells,
-                count,
-                "but removing",
-                len(known_mine_cells),
-                "mines first",
-            )
             cells -= known_mine_cells
             count -= len(known_mine_cells)
 
-        # Everything up to this point should be correct!
+        # TODO Maybe remove cells.moves_made from this set also?
 
-        # Add this new knowledge (sentence) if there is any information
+        # Only add this new knowledge (sentence) if there is any information
         if cells:
-
-            print(
-                "KB:",
-                [str(sentence) for sentence in self.knowledge],
-                "size:",
-                len(self.knowledge),
-            )
 
             # Only add unique sentences to knowledge base
             sentence = Sentence(cells, count)
             if sentence not in self.knowledge:
-
-                print("Adding knowledge:", sentence)
                 self.knowledge.append(sentence)
 
                 # Having this knowledge, check whether there are new known
                 #  mines or new known safes that haven't been marked yet.
                 self.update_safes_mines()
 
-                print(
-                    "KB after safes_mines:",
-                    [str(sentence) for sentence in self.knowledge],
-                    "size:",
-                    len(self.knowledge),
-                    "self.mines:",
-                    self.mines,
-                    "self.safes:",
-                    self.safes,
-                )
-
                 # Having this knowledge, check the knowledge base if we can
                 #  infer more knowledge. We are trying to find whether some
-                #  sentences have subsets of other sentence's sets. This way
-                #  we can infer new knowledge on the minesweeper board.
+                #  sentences have subsets of other sentence's sets.
                 #  Do this as long as any new knowledge can be infered from
-                #  any new knowledge that was created. Infer method will
-                #  eventually return an empty list which will evaluate False
-
+                #  any new knowledge that was created.
                 while self.infer_new_knowledge():
-                    print(
-                        "Inferred some new knowledge, knowledge base size:",
-                        len(self.knowledge),
-                    )
-                    # self.knowledge += new_knowledge
-
                     self.update_safes_mines()
-            else:
-                print("Skipping new sentence:", sentence)
-
-        print(
-            "KB now:",
-            [str(sentence) for sentence in self.knowledge],
-            "size:",
-            len(self.knowledge),
-        )
-        print("Inferred mines after knowledge:", self.mines)
-        print("---")
 
     def make_safe_move(self):
         """
@@ -379,22 +313,22 @@ class MinesweeperAI:
         # Out of these cells, remove all moves that are not allowed
         allowed_choices = all_moves - self.moves_made - self.mines
 
+        # If there are no allowed moves left, return nothing
         if not allowed_choices:
             return None
-        else:
-            # Because sets are deterministic, we need to create a list
-            #  out of the remaining set to actually get a random move
-            choices = list(allowed_choices)
-            choice = random.choice(choices)
 
-            return choice
+        # Because sets are deterministic, we need to create a list
+        #  out of the remaining set to actually get a random move
+        choices = list(allowed_choices)
+        choice = random.choice(choices)
+
+        return choice
 
     def neighbours(self, cell):
         """
         Returns a set that contains all cells that are neighbouring given cell.
         """
 
-        # Initialize empty set
         neighbour_cells = set()
 
         # Loop over all cells within one row and column
@@ -405,7 +339,7 @@ class MinesweeperAI:
                 if (i, j) == cell:
                     continue
 
-                # Add only cells that are inside the minesweeper board
+                # Only add cells that are inside the minesweeper board
                 if 0 <= i < self.height and 0 <= j < self.width:
                     neighbour_cells.add((i, j))
 
@@ -422,36 +356,6 @@ class MinesweeperAI:
         #  sentence set2 - set1 = count2 - count1
         # So, cross-reference each sentence in knowledge base with each other
 
-        """
-        inferred_knowledge = []
-        for sentence1 in self.knowledge:
-            for sentence2 in self.knowledge:
-
-                # Don't cross reference same sentence
-                if sentence1 == sentence2:
-                    print(
-                        "A duplicate sentence",
-                        sentence1,
-                        "was found - skipping",
-                    )
-                    continue
-
-                if sentence1.cells.issubset(sentence2.cells):
-                    # Create a new sentence
-                    new_cells = sentence2.cells - sentence1.cells
-                    new_count = sentence2.count - sentence1.count
-                    new_sentence = Sentence(new_cells, new_count)
-
-                    # Only add unique sentences to knowledge base
-                    if new_sentence in self.knowledge:
-                        print("Skipping new inferred sentence", new_sentence)
-                        continue
-
-                    print("Adding:", new_sentence)
-                    inferred_knowledge.append(new_sentence)
-        
-        """
-
         # First, create a sorted list from the knowledge base based on len(self.cells)
         sorted_knowledge = sorted(
             self.knowledge, key=lambda sentence: len(sentence.cells)
@@ -460,21 +364,19 @@ class MinesweeperAI:
         inferred_knowledge = []
         sentences_to_remove = []
 
-        print("Starting to infer...")
-
         # Subsets must be smaller than the sets they are contained in
         # So for every possible subset, only check the sets that are larger
         for i, sentence1 in enumerate(sorted_knowledge):
             for sentence2 in sorted_knowledge[i + 1 :]:
                 if sentence1.cells.issubset(sentence2.cells):
                     if sentence1 == sentence2:
-                        print(
-                            "A duplicate sentence",
-                            sentence1,
-                            "was found for",
-                            i,
-                            "- skipping",
-                        )
+                        # print(
+                        #     "A duplicate sentence",
+                        #     sentence1,
+                        #     "was found for",
+                        #     i,
+                        #     "- skipping",
+                        # )
                         continue
 
                     # Create a new sentence
@@ -484,47 +386,51 @@ class MinesweeperAI:
 
                     # Only add unique sentences to knowledge base
                     if new_sentence in self.knowledge:
-                        print("Skipping new inferred sentence", new_sentence)
                         continue
 
-                    print(
-                        "From:",
-                        sentence2,
-                        "and",
-                        sentence1,
-                    )
+                    # print(
+                    #     "From:",
+                    #     sentence2,
+                    #     "and",
+                    #     sentence1,
+                    # )
 
                     if not new_cells:
-                        raise Exception(
-                            "Attempting to add an empty set to KB - disallowing"
-                        )
+                        raise Exception("attempting to add an empty set to KB")
                     else:
-                        print("Inferring:", new_sentence)
+                        # print("Inferring:", new_sentence)
                         inferred_knowledge.append(new_sentence)
 
-                        # TODO If inferred sentence is len 1, sentence2 can be deleted as it will only be a duplicate of sentence1, because after the  inferred sentence is added to the knowledge base, it will remove itself from this sentence2 anyway
-                        # TODO Maybe is inferred sentence is len == count and count or if count == 0
+                        # TODO This may still create duplicate entries if similar info
+                        #  can be inferred from different sentences. Duplicates are
+                        #  skipped above so this doesn't really cause any problems.
 
-                        # We can remove the sentence with the bigger sentence from the
-                        #  knowledge base as we have more specific information available.
-                        #  This condenses the information in the knowledge base.
-                        # sentences_to_remove.append(sentence1)
-                        # sentences_to_remove.append(sentence2)
+                        # We can condense information in the knowledge base by removing
+                        #  one of the sentences from which we could infer this new
+                        #  information. Otherwise, there will eventually be repeating
+                        #  sentences in the KB as updating safes and mines will modify
+                        #  these sentences anyway
+                        sentences_to_remove.append(sentence2)
 
         # If there was any inferred knowledge..
         if inferred_knowledge:
-            # print("Removing", len(sentences_to_remove), "sentences")
-            print("Adding", len(inferred_knowledge), "sentences")
 
-            # Filter out rows from the knowledge base that were marked for removal
-            # new_knowledge = list(
-            #     filter(
-            #         lambda sentence: not sentence in sentences_to_remove, self.knowledge
-            #     )
-            # )
-            # self.knowledge = new_knowledge
+            # Remove some repetition from knowledge base
+            if sentences_to_remove:
 
-            # Add the new inferrec knowledge to knowledge base
+                # Filter out rows from the knowledge base that were marked for removal
+                new_knowledge = list(
+                    filter(
+                        lambda sentence: not sentence in sentences_to_remove,
+                        self.knowledge,
+                    )
+                )
+
+                # print("Removing", len(sentences_to_remove), "sentences")
+                self.knowledge = new_knowledge
+
+            # Add the new inferred knowledge to knowledge base
+            # print("Adding", len(inferred_knowledge), "sentences")
             self.knowledge += inferred_knowledge
             return True
 
@@ -536,16 +442,17 @@ class MinesweeperAI:
         """
 
         # In order for this to work and find all mines and safes, this needs recursion.
-        # First, you mark all safes and mines from the sentences. After that, you keep
-        #  looping through them again to see if there are changes made sentences. If
-        #  you do this in one same loop, some mines and safes will not be found.
-        #  This was a source one difficult to find bug for me.
+        # First, you mark all safes and mines from the sentences. If any marks were made,
+        #  you keep looping through sentences again to see if it caused any clear mines or
+        #  safes to appear into any sentences. If you did this only in one same loop,
+        #  some mines and safes wouldn't be found. This was a source to one difficult to
+        #  find bug for me. TODO This could probably be done more efficiently...
 
-        needs_verifying = True
-        while needs_verifying:
+        re_evaluate = True
+        while re_evaluate:
 
-            # Exit loop unless something requires it to continue
-            needs_verifying = False
+            # Exit loop unless something forces it to continue
+            re_evaluate = False
 
             mark_safes = []
             for sentence in self.knowledge:
@@ -558,10 +465,10 @@ class MinesweeperAI:
                 # Add these to a list
                 mark_safes += list(new_safes)
 
+            # It's important to do this in outside loop so self.safes is updated correctly
             for safe in mark_safes:
-                needs_verifying = True
-                print("Marking new safe: ", safe)
                 self.mark_safe(safe)
+                re_evaluate = True
 
             mark_mines = []
             for sentence in self.knowledge:
@@ -573,6 +480,5 @@ class MinesweeperAI:
                 mark_mines += list(new_mines)
 
             for mine in mark_mines:
-                needs_verifying = True
-                print("Marking new mine: ", mine)
                 self.mark_mine(mine)
+                re_evaluate = True
