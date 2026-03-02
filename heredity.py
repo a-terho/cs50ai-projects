@@ -1,7 +1,9 @@
 import csv
 import itertools
 import sys
+import math
 
+# fmt: off
 PROBS = {
 
     # Unconditional probabilities for having gene
@@ -35,6 +37,7 @@ PROBS = {
     # Mutation probability
     "mutation": 0.01
 }
+# fmt: on
 
 
 def main():
@@ -44,6 +47,7 @@ def main():
         sys.exit("Usage: python heredity.py data.csv")
     people = load_data(sys.argv[1])
 
+    # fmt: off
     # Keep track of gene and trait probabilities for each person
     probabilities = {
         person: {
@@ -59,22 +63,42 @@ def main():
         }
         for person in people
     }
+    # fmt: on
 
     # Loop over all sets of people who might have the trait
     names = set(people)
+
+    # print(names)
+    # print(powerset(names))
+
     for have_trait in powerset(names):
+
+        # print("Checking:", have_trait)
 
         # Check if current set of people violates known information
         fails_evidence = any(
-            (people[person]["trait"] is not None and
-             people[person]["trait"] != (person in have_trait))
+            (
+                people[person]["trait"] is not None
+                and people[person]["trait"] != (person in have_trait)
+                # Second line means: if person has the trait, they need
+                # to be in the have_trait set. If they don't have the
+                #  trait, they must not be in the have_trait set.
+                # Thus, have_trait will only have people with traits.
+            )
             for person in names
         )
         if fails_evidence:
+            # print("Fails evidence:", have_trait)
             continue
+
+        # print("Valid:", have_trait)
 
         # Loop over all sets of people who might have the gene
         for one_gene in powerset(names):
+
+            # This part will loop over opposite powersets from names,
+            #  so all possible combinations of all people having any
+            #  of the combinations of either 1 or 2 genes is checked
             for two_genes in powerset(names - one_gene):
 
                 # Update probabilities with new joint probability
@@ -101,6 +125,7 @@ def load_data(filename):
     mother, father must both be blank, or both be valid names in the CSV.
     trait should be 0 or 1 if trait is known, blank otherwise.
     """
+
     data = dict()
     with open(filename) as f:
         reader = csv.DictReader(f)
@@ -110,8 +135,11 @@ def load_data(filename):
                 "name": name,
                 "mother": row["mother"] or None,
                 "father": row["father"] or None,
-                "trait": (True if row["trait"] == "1" else
-                          False if row["trait"] == "0" else None)
+                "trait": (
+                    True
+                    if row["trait"] == "1"
+                    else False if row["trait"] == "0" else None
+                ),
             }
     return data
 
@@ -120,12 +148,137 @@ def powerset(s):
     """
     Return a list of all possible subsets of set s.
     """
+
     s = list(s)
     return [
-        set(s) for s in itertools.chain.from_iterable(
+        set(s)
+        for s in itertools.chain.from_iterable(
             itertools.combinations(s, r) for r in range(len(s) + 1)
         )
     ]
+
+
+def OR(*args: float) -> float:
+    """
+    Helper function for probability arithmetrics.
+
+    Assumes mutual exclusivity for each argument, meaning they cannot happen at same time.
+    """
+    return sum(args)
+
+
+def AND(*args: float) -> float:
+    """
+    Helper function for probability arithmetrics.
+
+    Assumes indepedence for each argument, meaning they do not influence one another.
+    """
+    return math.prod(args)
+
+
+def NOT(prob: float) -> float:
+    """
+    Helper function for probability arithmetrics.
+    """
+    return 1 - prob
+
+
+def prob_person_passed_gene(person, people):
+    """
+    Calculates the probability that a gene is passed from person to their child: either the actual gene variant is passed or a healthy variant mutates into said gene variant.
+    """
+
+    # Person will have potential to pass the gene when:
+    # a. they have 1 gene, and 50/50 chance happens
+    # b. they have 2 genes, in which case they will try to pass it
+    # Both a and b cannot happen at the same time
+    # They will manage to pass it only if it doesn't mutate
+    prob_passed = AND(
+        OR(0.5 * prob_one_gene(person, people), prob_two_genes(person, people)),
+        NOT(PROBS["mutation"]),
+    )
+
+    # Other possibility is that the person does not have the gene, but it mutates
+    prob_mutated = AND(prob_no_gene(person, people), PROBS["mutation"])
+
+    # Passing unmutated and mutated forms of gene cannot happen at the same time
+    return OR(prob_passed, prob_mutated)
+
+
+def prob_no_gene(person, people):
+    # Get person's parents
+    mother = people[person]["mother"]
+    father = people[person]["father"]
+
+    # If person has no parents, use unconditional probability
+    if not (mother and father):
+        return PROBS["gene"][0]
+
+    # Person will have no genes only if both parents did not pass the gene
+    return AND(
+        NOT(prob_person_passed_gene(mother, people)),
+        NOT(prob_person_passed_gene(father, people)),
+    )
+    # return NOT(
+    #     OR(
+    #         prob_person_passed_gene(mother, people),
+    #         prob_person_passed_gene(father, people),
+    #     )
+    # )
+
+
+def prob_one_gene(person, people):
+    # Get person's parents
+    mother = people[person]["mother"]
+    father = people[person]["father"]
+
+    # If person has no parents, use unconditional probability
+    if not (mother and father):
+        return PROBS["gene"][1]
+
+    # Person will have one only gene only if one of these realities happen:
+    # a. mother passes the gene and father does not
+    # b. father passes the gene and mother does not
+    # Both cases a and b cannot happen at the same time
+    return OR(
+        AND(
+            prob_person_passed_gene(mother, people),
+            NOT(prob_person_passed_gene(father, people)),
+        ),
+        AND(
+            prob_person_passed_gene(father, people),
+            NOT(prob_person_passed_gene(mother, people)),
+        ),
+    )
+
+
+def prob_two_genes(person, people):
+    # Get person's parents
+    mother = people[person]["mother"]
+    father = people[person]["father"]
+
+    # If person has no parents, use unconditional probability
+    if not (mother and father):
+        return PROBS["gene"][2]
+
+    # Person will have two genes only when both parents pass the gene
+    return AND(
+        prob_person_passed_gene(mother, people), prob_person_passed_gene(father, people)
+    )
+
+
+def prob_has_trait(person, people):
+
+    # There are three different realities where the person has the trait
+    # a. person has no genes, but has the trait
+    # b. person has 1 gene and has the trait
+    # c. person has 2 genes and has the trait
+    # Cases a, b and c cannot happen at the same time
+    return OR(
+        AND(prob_no_gene(person, people), PROBS["trait"][0][True]),
+        AND(prob_one_gene(person, people), PROBS["trait"][1][True]),
+        AND(prob_two_genes(person, people), PROBS["trait"][2][True]),
+    )
 
 
 def joint_probability(people, one_gene, two_genes, have_trait):
@@ -139,7 +292,62 @@ def joint_probability(people, one_gene, two_genes, have_trait):
         * everyone in set `have_trait` has the trait, and
         * everyone not in set` have_trait` does not have the trait.
     """
-    raise NotImplementedError
+
+    # Function computes a single probability for above events happening with the
+    #  given combination of one_gene, two_genes and have_trait (a possible world)
+
+    # people in format { ["Harry"]: { ["name"]: "Harry", ["mother"]: "Lily", ["father"]: "James", ["trait"]: True/False/None } }
+    # one_gene in format { "Harry", "James" }
+    # two_genes in format { "Lily" } # always the inverse of one_gene over all names
+    # have_trait in format { "Lily", "James" } # all of the people have the trait
+
+    # # Probability calculations in this case start from certainty
+    # prob = 1
+
+    # # Probability that everyone in one_gene has one copy of the gene
+    # for person in one_gene:
+    #     prob = AND(prob, prob_one_gene(person, people))
+
+    # # Probability that everyone in two_genes has two copies of the gene
+    # for person in two_genes:
+    #     prob = AND(prob, prob_two_genes(person, people))
+
+    # # Probability that everyone not in either one_gene or two_genes does not have the gene
+    # for person in people:
+    #     if not (person in one_gene or person in two_genes):
+    #         prob = AND(prob, prob_no_gene(person, people))
+
+    # # Probability that everyone in have_trait has the trait
+    # for person in have_trait:
+    #     prob = AND(prob, prob_has_trait(person, people))
+
+    # # Probability that everyone no in have_trait does not have the trait
+    # for person in people:
+    #     if person not in have_trait:
+    #         prob = AND(prob, NOT(prob_has_trait(person, people)))
+
+    # return prob
+
+    probabilities = []
+    for person in people:
+
+        # Probability that anyone in one_gene has one copy of the gene
+        if person in one_gene:
+            probabilities.append(prob_one_gene(person, people))
+            probabilities.append(PROBS["trait"][1][person in have_trait])
+
+        # Probability that anyone in two_genes has two copies of the gene
+        if person in two_genes:
+            probabilities.append(prob_two_genes(person, people))
+            probabilities.append(PROBS["trait"][2][person in have_trait])
+
+        # Probability that anyone in neither set doesn't have the gene
+        if not (person in one_gene or person in two_genes):
+            probabilities.append(prob_no_gene(person, people))
+            probabilities.append(PROBS["trait"][0][person in have_trait])
+
+    # Return the probability of all events happening simultaneously
+    return AND(*probabilities)
 
 
 def update(probabilities, one_gene, two_genes, have_trait, p):
@@ -149,7 +357,27 @@ def update(probabilities, one_gene, two_genes, have_trait, p):
     Which value for each distribution is updated depends on whether
     the person is in `have_gene` and `have_trait`, respectively.
     """
-    raise NotImplementedError
+
+    # For the given combination of one_gene, two_genes and have_trait (a possible
+    #  world), store the calculated probability of that possible world happening
+
+    # The function takes advantage of probability distribution marginalization rule:
+    #  a probability distribution is the sum of each of the probabilities that a
+    #  certain possible world within the distribution will occur
+
+    for person in probabilities:
+
+        # First, distribute the probability for gene count
+        # These all should be mutually exclusive (no elif should be needed)
+        if person in one_gene:
+            probabilities[person]["gene"][1] += p
+        if person in two_genes:
+            probabilities[person]["gene"][2] += p
+        if person not in one_gene and person not in two_genes:
+            probabilities[person]["gene"][0] += p
+
+        # Second, distribute the probability for the trait status
+        probabilities[person]["trait"][person in have_trait] += p
 
 
 def normalize(probabilities):
@@ -157,7 +385,17 @@ def normalize(probabilities):
     Update `probabilities` such that each probability distribution
     is normalized (i.e., sums to 1, with relative proportions the same).
     """
-    raise NotImplementedError
+
+    for person in probabilities:
+        for dist in probabilities[person].keys():
+            # Calculate the sum of all values in the distribution
+            # From that, calculate normalizing factor (alpha)
+            sum_dist = sum(probabilities[person][dist].values())
+            alpha_dist = 1 / sum_dist
+
+            # Then, normalize the dictionary accordingly
+            for key in probabilities[person][dist].keys():
+                probabilities[person][dist][key] *= alpha_dist
 
 
 if __name__ == "__main__":
