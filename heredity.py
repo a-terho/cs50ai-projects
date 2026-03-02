@@ -68,12 +68,7 @@ def main():
     # Loop over all sets of people who might have the trait
     names = set(people)
 
-    # print(names)
-    # print(powerset(names))
-
     for have_trait in powerset(names):
-
-        # print("Checking:", have_trait)
 
         # Check if current set of people violates known information
         fails_evidence = any(
@@ -88,10 +83,7 @@ def main():
             for person in names
         )
         if fails_evidence:
-            # print("Fails evidence:", have_trait)
             continue
-
-        # print("Valid:", have_trait)
 
         # Loop over all sets of people who might have the gene
         for one_gene in powerset(names):
@@ -183,29 +175,36 @@ def NOT(prob: float) -> float:
     return 1 - prob
 
 
-def prob_person_passed_gene(person, people):
+def prob_person_passed_gene(person, permutation):
     """
-    Calculates the probability that a gene is passed from person to their child: either the actual gene variant is passed or a healthy variant mutates into said gene variant.
+    Calculate the probability that person passes the gene in given permutation:
+    either a potential gene is passed unmutated or healthy gene is passed mutated.
     """
 
-    # Person will have potential to pass the gene when:
-    # a. they have 1 gene, and 50/50 chance happens
-    # b. they have 2 genes, in which case they will try to pass it
-    # Both a and b cannot happen at the same time
-    # They will manage to pass it only if it doesn't mutate
-    prob_passed = AND(
-        OR(0.5 * prob_one_gene(person, people), prob_two_genes(person, people)),
-        NOT(PROBS["mutation"]),
+    # Assuming person does not have the gene, they have has no potential to pass it on
+    prob_gene_passing_potential = 0
+
+    # But depending on given permutation of genes, there may be potential:
+    # a. if person happens to have 1 gene, 50/50 chance happens
+    # b. if person happens to have 2 genes, they will try to pass it on
+    if person in permutation["one_gene"]:
+        prob_gene_passing_potential = 0.5
+    if person in permutation["two_genes"]:
+        prob_gene_passing_potential = 1
+
+    # Ultimately, whether they will pass the gene is a product of the potential
+    #  and any chance of possible mutation that could happen during the process
+    return OR(
+        AND(prob_gene_passing_potential, NOT(PROBS["mutation"])),
+        AND(NOT(prob_gene_passing_potential), PROBS["mutation"]),
     )
 
-    # Other possibility is that the person does not have the gene, but it mutates
-    prob_mutated = AND(prob_no_gene(person, people), PROBS["mutation"])
 
-    # Passing unmutated and mutated forms of gene cannot happen at the same time
-    return OR(prob_passed, prob_mutated)
+def prob_no_gene(person, people, permutation):
+    """
+    Calculate the probability of person having no genes in given permutation.
+    """
 
-
-def prob_no_gene(person, people):
     # Get person's parents
     mother = people[person]["mother"]
     father = people[person]["father"]
@@ -214,20 +213,18 @@ def prob_no_gene(person, people):
     if not (mother and father):
         return PROBS["gene"][0]
 
-    # Person will have no genes only if both parents did not pass the gene
+    # Person will have no genes only if both parents don't pass the gene
     return AND(
-        NOT(prob_person_passed_gene(mother, people)),
-        NOT(prob_person_passed_gene(father, people)),
+        NOT(prob_person_passed_gene(mother, permutation)),
+        NOT(prob_person_passed_gene(father, permutation)),
     )
-    # return NOT(
-    #     OR(
-    #         prob_person_passed_gene(mother, people),
-    #         prob_person_passed_gene(father, people),
-    #     )
-    # )
 
 
-def prob_one_gene(person, people):
+def prob_one_gene(person, people, permutation):
+    """
+    Calculate the probability of person having one gene in given permutation.
+    """
+
     # Get person's parents
     mother = people[person]["mother"]
     father = people[person]["father"]
@@ -236,23 +233,27 @@ def prob_one_gene(person, people):
     if not (mother and father):
         return PROBS["gene"][1]
 
-    # Person will have one only gene only if one of these realities happen:
+    # Person will have one only gene only if one of these possible worlds happen:
     # a. mother passes the gene and father does not
     # b. father passes the gene and mother does not
     # Both cases a and b cannot happen at the same time
     return OR(
         AND(
-            prob_person_passed_gene(mother, people),
-            NOT(prob_person_passed_gene(father, people)),
+            prob_person_passed_gene(mother, permutation),
+            NOT(prob_person_passed_gene(father, permutation)),
         ),
         AND(
-            prob_person_passed_gene(father, people),
-            NOT(prob_person_passed_gene(mother, people)),
+            prob_person_passed_gene(father, permutation),
+            NOT(prob_person_passed_gene(mother, permutation)),
         ),
     )
 
 
-def prob_two_genes(person, people):
+def prob_two_genes(person, people, permutation):
+    """
+    Calculate the probability of person having two genes in given permutation.
+    """
+
     # Get person's parents
     mother = people[person]["mother"]
     father = people[person]["father"]
@@ -263,21 +264,8 @@ def prob_two_genes(person, people):
 
     # Person will have two genes only when both parents pass the gene
     return AND(
-        prob_person_passed_gene(mother, people), prob_person_passed_gene(father, people)
-    )
-
-
-def prob_has_trait(person, people):
-
-    # There are three different realities where the person has the trait
-    # a. person has no genes, but has the trait
-    # b. person has 1 gene and has the trait
-    # c. person has 2 genes and has the trait
-    # Cases a, b and c cannot happen at the same time
-    return OR(
-        AND(prob_no_gene(person, people), PROBS["trait"][0][True]),
-        AND(prob_one_gene(person, people), PROBS["trait"][1][True]),
-        AND(prob_two_genes(person, people), PROBS["trait"][2][True]),
+        prob_person_passed_gene(mother, permutation),
+        prob_person_passed_gene(father, permutation),
     )
 
 
@@ -293,57 +281,38 @@ def joint_probability(people, one_gene, two_genes, have_trait):
         * everyone not in set` have_trait` does not have the trait.
     """
 
-    # Function computes a single probability for above events happening with the
-    #  given combination of one_gene, two_genes and have_trait (a possible world)
+    # Function computes a single probability for above events happening within the
+    #  given permutation of one_gene, two_genes and have_trait (a possible world)
 
-    # people in format { ["Harry"]: { ["name"]: "Harry", ["mother"]: "Lily", ["father"]: "James", ["trait"]: True/False/None } }
-    # one_gene in format { "Harry", "James" }
-    # two_genes in format { "Lily" } # always the inverse of one_gene over all names
-    # have_trait in format { "Lily", "James" } # all of the people have the trait
-
-    # # Probability calculations in this case start from certainty
-    # prob = 1
-
-    # # Probability that everyone in one_gene has one copy of the gene
-    # for person in one_gene:
-    #     prob = AND(prob, prob_one_gene(person, people))
-
-    # # Probability that everyone in two_genes has two copies of the gene
-    # for person in two_genes:
-    #     prob = AND(prob, prob_two_genes(person, people))
-
-    # # Probability that everyone not in either one_gene or two_genes does not have the gene
-    # for person in people:
-    #     if not (person in one_gene or person in two_genes):
-    #         prob = AND(prob, prob_no_gene(person, people))
-
-    # # Probability that everyone in have_trait has the trait
-    # for person in have_trait:
-    #     prob = AND(prob, prob_has_trait(person, people))
-
-    # # Probability that everyone no in have_trait does not have the trait
-    # for person in people:
-    #     if person not in have_trait:
-    #         prob = AND(prob, NOT(prob_has_trait(person, people)))
-
-    # return prob
+    # Gather info about this possible world into a seperate dict
+    possible_world = {
+        "one_gene": one_gene,
+        "two_genes": two_genes,
+        # "have_trait": have_trait,
+    }
 
     probabilities = []
     for person in people:
 
         # Probability that anyone in one_gene has one copy of the gene
         if person in one_gene:
-            probabilities.append(prob_one_gene(person, people))
+            probabilities.append(prob_one_gene(person, people, possible_world))
+
+            # With 1 gene, gather probability for having current trait status
             probabilities.append(PROBS["trait"][1][person in have_trait])
 
         # Probability that anyone in two_genes has two copies of the gene
         if person in two_genes:
-            probabilities.append(prob_two_genes(person, people))
+            probabilities.append(prob_two_genes(person, people, possible_world))
+
+            # With 2 genes, gather probability for having current trait status
             probabilities.append(PROBS["trait"][2][person in have_trait])
 
         # Probability that anyone in neither set doesn't have the gene
         if not (person in one_gene or person in two_genes):
-            probabilities.append(prob_no_gene(person, people))
+            probabilities.append(prob_no_gene(person, people, possible_world))
+
+            # With no genes, gather probability for having current trait status
             probabilities.append(PROBS["trait"][0][person in have_trait])
 
     # Return the probability of all events happening simultaneously
@@ -358,12 +327,12 @@ def update(probabilities, one_gene, two_genes, have_trait, p):
     the person is in `have_gene` and `have_trait`, respectively.
     """
 
-    # For the given combination of one_gene, two_genes and have_trait (a possible
+    # For the given permutation of one_gene, two_genes and have_trait (a possible
     #  world), store the calculated probability of that possible world happening
 
-    # The function takes advantage of probability distribution marginalization rule:
-    #  a probability distribution is the sum of each of the probabilities that a
-    #  certain possible world within the distribution will occur
+    # Function takes advantage of rule for marginalizing probability distributions:
+    #  a probability distribution is the sum of each of those probabilities where a
+    #  certain possible world within the distribution occurs
 
     for person in probabilities:
 
