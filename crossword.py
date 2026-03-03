@@ -1,10 +1,11 @@
-class Variable():
+class Variable:
 
     ACROSS = "across"
     DOWN = "down"
 
     def __init__(self, i, j, direction, length):
         """Create a new variable with starting point, direction, and length."""
+
         self.i = i
         self.j = j
         self.direction = direction
@@ -12,8 +13,10 @@ class Variable():
         self.cells = []
         for k in range(self.length):
             self.cells.append(
-                (self.i + (k if self.direction == Variable.DOWN else 0),
-                 self.j + (k if self.direction == Variable.ACROSS else 0))
+                (
+                    self.i + (k if self.direction == Variable.DOWN else 0),
+                    self.j + (k if self.direction == Variable.ACROSS else 0),
+                )
             )
 
     def __hash__(self):
@@ -21,10 +24,10 @@ class Variable():
 
     def __eq__(self, other):
         return (
-            (self.i == other.i) and
-            (self.j == other.j) and
-            (self.direction == other.direction) and
-            (self.length == other.length)
+            (self.i == other.i)
+            and (self.j == other.j)
+            and (self.direction == other.direction)
+            and (self.length == other.length)
         )
 
     def __str__(self):
@@ -35,7 +38,7 @@ class Variable():
         return f"Variable({self.i}, {self.j}, {direction}, {self.length})"
 
 
-class Crossword():
+class Crossword:
 
     def __init__(self, structure_file, words_file):
 
@@ -67,9 +70,8 @@ class Crossword():
             for j in range(self.width):
 
                 # Vertical words
-                starts_word = (
-                    self.structure[i][j]
-                    and (i == 0 or not self.structure[i - 1][j])
+                starts_word = self.structure[i][j] and (
+                    i == 0 or not self.structure[i - 1][j]
                 )
                 if starts_word:
                     length = 1
@@ -79,16 +81,13 @@ class Crossword():
                         else:
                             break
                     if length > 1:
-                        self.variables.add(Variable(
-                            i=i, j=j,
-                            direction=Variable.DOWN,
-                            length=length
-                        ))
+                        self.variables.add(
+                            Variable(i=i, j=j, direction=Variable.DOWN, length=length)
+                        )
 
                 # Horizontal words
-                starts_word = (
-                    self.structure[i][j]
-                    and (j == 0 or not self.structure[i][j - 1])
+                starts_word = self.structure[i][j] and (
+                    j == 0 or not self.structure[i][j - 1]
                 )
                 if starts_word:
                     length = 1
@@ -98,11 +97,9 @@ class Crossword():
                         else:
                             break
                     if length > 1:
-                        self.variables.add(Variable(
-                            i=i, j=j,
-                            direction=Variable.ACROSS,
-                            length=length
-                        ))
+                        self.variables.add(
+                            Variable(i=i, j=j, direction=Variable.ACROSS, length=length)
+                        )
 
         # Compute overlaps for each word
         # For any pair of variables v1, v2, their overlap is either:
@@ -122,12 +119,10 @@ class Crossword():
                     intersection = intersection.pop()
                     self.overlaps[v1, v2] = (
                         cells1.index(intersection),
-                        cells2.index(intersection)
+                        cells2.index(intersection),
                     )
 
     def neighbors(self, var):
         """Given a variable, return set of overlapping variables."""
-        return set(
-            v for v in self.variables
-            if v != var and self.overlaps[v, var]
-        )
+
+        return set(v for v in self.variables if v != var and self.overlaps[v, var])

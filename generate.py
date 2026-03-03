@@ -3,22 +3,23 @@ import sys
 from crossword import *
 
 
-class CrosswordCreator():
+class CrosswordCreator:
 
     def __init__(self, crossword):
         """
         Create new CSP crossword generate.
         """
+
         self.crossword = crossword
         self.domains = {
-            var: self.crossword.words.copy()
-            for var in self.crossword.variables
+            var: self.crossword.words.copy() for var in self.crossword.variables
         }
 
     def letter_grid(self, assignment):
         """
         Return 2D array representing a given assignment.
         """
+
         letters = [
             [None for _ in range(self.crossword.width)]
             for _ in range(self.crossword.height)
@@ -35,6 +36,7 @@ class CrosswordCreator():
         """
         Print crossword assignment to the terminal.
         """
+
         letters = self.letter_grid(assignment)
         for i in range(self.crossword.height):
             for j in range(self.crossword.width):
@@ -48,7 +50,9 @@ class CrosswordCreator():
         """
         Save crossword assignment to an image file.
         """
+
         from PIL import Image, ImageDraw, ImageFont
+
         cell_size = 100
         cell_border = 2
         interior_size = cell_size - 2 * cell_border
@@ -57,9 +61,8 @@ class CrosswordCreator():
         # Create a blank canvas
         img = Image.new(
             "RGBA",
-            (self.crossword.width * cell_size,
-             self.crossword.height * cell_size),
-            "black"
+            (self.crossword.width * cell_size, self.crossword.height * cell_size),
+            "black",
         )
         font = ImageFont.truetype("assets/fonts/OpenSans-Regular.ttf", 80)
         draw = ImageDraw.Draw(img)
@@ -68,19 +71,24 @@ class CrosswordCreator():
             for j in range(self.crossword.width):
 
                 rect = [
-                    (j * cell_size + cell_border,
-                     i * cell_size + cell_border),
-                    ((j + 1) * cell_size - cell_border,
-                     (i + 1) * cell_size - cell_border)
+                    (j * cell_size + cell_border, i * cell_size + cell_border),
+                    (
+                        (j + 1) * cell_size - cell_border,
+                        (i + 1) * cell_size - cell_border,
+                    ),
                 ]
                 if self.crossword.structure[i][j]:
                     draw.rectangle(rect, fill="white")
                     if letters[i][j]:
                         _, _, w, h = draw.textbbox((0, 0), letters[i][j], font=font)
                         draw.text(
-                            (rect[0][0] + ((interior_size - w) / 2),
-                             rect[0][1] + ((interior_size - h) / 2) - 10),
-                            letters[i][j], fill="black", font=font
+                            (
+                                rect[0][0] + ((interior_size - w) / 2),
+                                rect[0][1] + ((interior_size - h) / 2) - 10,
+                            ),
+                            letters[i][j],
+                            fill="black",
+                            font=font,
                         )
 
         img.save(filename)
@@ -89,9 +97,13 @@ class CrosswordCreator():
         """
         Enforce node and arc consistency, and then solve the CSP.
         """
+
         self.enforce_node_consistency()
         self.ac3()
         return self.backtrack(dict())
+
+    ######
+    ## Implementation
 
     def enforce_node_consistency(self):
         """
@@ -99,6 +111,7 @@ class CrosswordCreator():
         (Remove any values that are inconsistent with a variable's unary
          constraints; in this case, the length of the word.)
         """
+
         raise NotImplementedError
 
     def revise(self, x, y):
@@ -110,6 +123,7 @@ class CrosswordCreator():
         Return True if a revision was made to the domain of `x`; return
         False if no revision was made.
         """
+
         raise NotImplementedError
 
     def ac3(self, arcs=None):
@@ -121,6 +135,7 @@ class CrosswordCreator():
         Return True if arc consistency is enforced and no domains are empty;
         return False if one or more domains end up empty.
         """
+
         raise NotImplementedError
 
     def assignment_complete(self, assignment):
@@ -128,6 +143,7 @@ class CrosswordCreator():
         Return True if `assignment` is complete (i.e., assigns a value to each
         crossword variable); return False otherwise.
         """
+
         raise NotImplementedError
 
     def consistent(self, assignment):
@@ -135,6 +151,7 @@ class CrosswordCreator():
         Return True if `assignment` is consistent (i.e., words fit in crossword
         puzzle without conflicting characters); return False otherwise.
         """
+
         raise NotImplementedError
 
     def order_domain_values(self, var, assignment):
@@ -144,6 +161,7 @@ class CrosswordCreator():
         The first value in the list, for example, should be the one
         that rules out the fewest values among the neighbors of `var`.
         """
+
         raise NotImplementedError
 
     def select_unassigned_variable(self, assignment):
@@ -154,6 +172,7 @@ class CrosswordCreator():
         degree. If there is a tie, any of the tied variables are acceptable
         return values.
         """
+
         raise NotImplementedError
 
     def backtrack(self, assignment):
@@ -165,6 +184,7 @@ class CrosswordCreator():
 
         If no assignment is possible, return None.
         """
+
         raise NotImplementedError
 
 
