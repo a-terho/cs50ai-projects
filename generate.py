@@ -1,4 +1,5 @@
 import sys
+import random
 
 from crossword import *
 
@@ -308,8 +309,12 @@ class CrosswordCreator:
         #  order according to how many constraints each word creates for all its
         #  neighbors. Domain will then obey the least constraining value heuristic.
         domain = list(self.domains[var])
-        domain.sort(reverse=False, key=lambda word: constraints[word])
 
+        # Add additional shuffle to allow any words with equal amount of constraints
+        #  to appear in different order even after sorting (adds variety to crosswords)
+        random.shuffle(domain)
+
+        domain.sort(reverse=False, key=lambda word: constraints[word])
         return domain
 
     def select_unassigned_variable(self, assignment):
@@ -361,9 +366,19 @@ class CrosswordCreator:
             reverse=True, key=lambda var: len(self.crossword.neighbors(var))
         )
 
-        # TODO We could implement selecting any of the variables that are still
-        #  tying here, but for now, just pick the first one
-        return tying_vars[0]
+        # Finally, filter out any remaining variables that are not trying with current
+        #  leading variable after the second sort. These now are the best choices
+        leading_var = tying_vars[0]
+        best_choices = list(
+            filter(
+                lambda var: len(self.crossword.neighbors(var))
+                == len(self.crossword.neighbors(leading_var)),
+                tying_vars,
+            )
+        )
+
+        # Return any of these best choices
+        return random.choice(best_choices)
 
     def backtrack(self, assignment):
         """
@@ -390,12 +405,32 @@ class CrosswordCreator:
             new_assignment = assignment.copy()
             new_assignment[var] = word
 
-            # Check if new assignment is still consistent knowing the constraints
+            # Check if the new assignment is still consistent knowing the constraints
             if self.consistent(new_assignment):
 
-                # TODO Add inference here
+                # Using inference makes the search problem more efficient
+                # We can maintain arc consistency for the problem after every consistent
+                #  assignment. Arc consistency should be maintained for all neighboring
+                #  variables of currently processed variable.
 
-                # If it is, use the new assignment in next recursive search
+                # First, we need to remove all other words from current variables domain
+                #  because current word is now truly assigned and it is the only choice
+                self.domains[var].clear()
+                self.domains[var].add(word)
+
+                # After that, create a list of all arcs leading to current variable. The
+                #  arcs come from current variable's neighbouring variables
+                arcs = []
+                for neighbor in self.crossword.neighbors(var):
+                    arcs.append((neighbor, var))
+
+                # Calling ac3 will enforce arc consistency for current problem and it will
+                #  modify any variable's domain so that each of them is arc consistent. If
+                #  the algorithm fails, a domain has been cleared and there is no solution
+                if not self.ac3(arcs):
+                    return None
+
+                # If there's still a solution, use new assignment in next recursive search
                 result = self.backtrack(new_assignment)
 
                 # Result will be a completed assignment that uses current
