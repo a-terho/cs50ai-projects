@@ -413,13 +413,17 @@ class CrosswordCreator:
                 #  assignment. Arc consistency should be maintained for all neighboring
                 #  variables of currently processed variable.
 
-                # First, we need to remove all other words from current variables domain
-                #  because current word is now truly assigned and it is the only choice
+                # First, we need to backup (= create a deep copy of) all of the domains of
+                #  each variable, as ac3 algorithm can modify any domain of any variable
+                domains = {var: self.domains[var].copy() for var in self.domains}
+
+                # Second, we need to remove all other words from current variable's domain
+                #  because current word is now truly assigned and it is the only choice.
                 self.domains[var].clear()
                 self.domains[var].add(word)
 
                 # After that, create a list of all arcs leading to current variable. The
-                #  arcs come from current variable's neighbouring variables
+                #  arcs originate from current variable's neighbouring variables
                 arcs = []
                 for neighbor in self.crossword.neighbors(var):
                     arcs.append((neighbor, var))
@@ -427,15 +431,23 @@ class CrosswordCreator:
                 # Calling ac3 will enforce arc consistency for current problem and it will
                 #  modify any variable's domain so that each of them is arc consistent. If
                 #  the algorithm fails, a domain has been cleared and there is no solution
+                #  with current word and in that case, we need to restore previous state #  (= all previous domains) and continue search by trying the next word
                 if not self.ac3(arcs):
-                    return None
+                    self.domains = domains
+                    continue
 
-                # If there's still a solution, use new assignment in next recursive search
+                # If ac3 succeeds, we have successfully narrowed the current search space
+                #  and we can continue recursive search with this new assignment
                 result = self.backtrack(new_assignment)
 
-                # Result will be a completed assignment that uses current
-                #  [var] = word combo if there was any possible assignment
-                if result is not None:
+                # If there was no result with this assignment, we need to yet again
+                #  restore previous state before any inference was done (by ac3 algorithm)
+                if result is None:
+                    self.domains = domains
+                    continue
+
+                # Otherwise, we found a solution for this problem
+                else:
                     return result
 
         return None
