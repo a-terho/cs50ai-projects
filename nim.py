@@ -3,7 +3,7 @@ import random
 import time
 
 
-class Nim():
+class Nim:
 
     def __init__(self, initial=[1, 3, 5, 7]):
         """
@@ -13,6 +13,7 @@ class Nim():
             - `player`: 0 or 1 to indicate which player's turn
             - `winner`: None, 0, or 1 to indicate who the winner is
         """
+
         self.piles = initial.copy()
         self.player = 0
         self.winner = None
@@ -26,6 +27,7 @@ class Nim():
         Action `(i, j)` represents the action of removing `j` items
         from pile `i` (where piles are 0-indexed).
         """
+
         actions = set()
         for i, pile in enumerate(piles):
             for j in range(1, pile + 1):
@@ -38,12 +40,14 @@ class Nim():
         Nim.other_player(player) returns the player that is not
         `player`. Assumes `player` is either 0 or 1.
         """
+
         return 0 if player == 1 else 1
 
     def switch_player(self):
         """
         Switch the current player to the other player.
         """
+
         self.player = Nim.other_player(self.player)
 
     def move(self, action):
@@ -51,6 +55,7 @@ class Nim():
         Make the move `action` for the current player.
         `action` must be a tuple `(i, j)`.
         """
+
         pile, count = action
 
         # Check for errors
@@ -70,7 +75,7 @@ class Nim():
             self.winner = self.player
 
 
-class NimAI():
+class NimAI:
 
     def __init__(self, alpha=0.5, epsilon=0.1):
         """
@@ -82,6 +87,7 @@ class NimAI():
          - `state` is a tuple of remaining piles, e.g. (1, 1, 4, 4)
          - `action` is a tuple `(i, j)` for an action
         """
+
         self.q = dict()
         self.alpha = alpha
         self.epsilon = epsilon
@@ -92,16 +98,25 @@ class NimAI():
         in that state, a new resulting state, and the reward received
         from taking that action.
         """
+
         old = self.get_q_value(old_state, action)
         best_future = self.best_future_reward(new_state)
         self.update_q_value(old_state, action, old, reward, best_future)
+
+    #####
+    # Implementation
 
     def get_q_value(self, state, action):
         """
         Return the Q-value for the state `state` and the action `action`.
         If no Q-value exists yet in `self.q`, return 0.
         """
-        raise NotImplementedError
+
+        # state is a list, which needs to be converted into a tuple
+        try:
+            return self.q[(tuple(state), action)]
+        except KeyError:
+            return 0
 
     def update_q_value(self, state, action, old_q, reward, future_rewards):
         """
@@ -118,7 +133,14 @@ class NimAI():
         `alpha` is the learning rate, and `new value estimate`
         is the sum of the current reward and estimated future rewards.
         """
-        raise NotImplementedError
+
+        # Initialize any unexplored state-action pair
+        # state is a list, which needs to be converted into a tuple
+        key = (tuple(state), action)
+        if key not in self.q:
+            self.q[key] = 0
+
+        self.q[key] += self.alpha * ((reward + future_rewards) - old_q)
 
     def best_future_reward(self, state):
         """
@@ -130,7 +152,19 @@ class NimAI():
         Q-value in `self.q`. If there are no available actions in
         `state`, return 0.
         """
-        raise NotImplementedError
+
+        # First, get all available actions in this state of game
+        actions = Nim.available_actions(state)
+
+        # If there are no possible actions (game is over), return 0
+        if not actions:
+            return 0
+
+        # Get all the Q-values and choose the best one out of them
+        q_values = []
+        for action in actions:
+            q_values.append(self.get_q_value(state, action))
+        return max(q_values)
 
     def choose_action(self, state, epsilon=True):
         """
@@ -147,7 +181,25 @@ class NimAI():
         If multiple actions have the same Q-value, any of those
         options is an acceptable return value.
         """
-        raise NotImplementedError
+
+        # First, get all available actions in this state of game
+        actions = Nim.available_actions(state)
+
+        # When using epsilon-greedy decision making, with P = self.epsilon,
+        #  choose any random action out of the available actions
+        if epsilon and random.random() <= self.epsilon:
+            return random.choice(list(actions))
+
+        # Otherwise, use greedy decision-making policy
+        else:
+
+            # Calculate Q-values associated for every possible action
+            q_values = {}
+            for action in actions:
+                q_values[action] = self.get_q_value(state, action)
+
+            # Out of all the actions, choose the one with highest Q-value
+            return max(q_values, key=lambda action: q_values[action])
 
 
 def train(n):
@@ -163,10 +215,7 @@ def train(n):
         game = Nim()
 
         # Keep track of last move made by either player
-        last = {
-            0: {"state": None, "action": None},
-            1: {"state": None, "action": None}
-        }
+        last = {0: {"state": None, "action": None}, 1: {"state": None, "action": None}}
 
         # Game loop
         while True:
@@ -184,23 +233,29 @@ def train(n):
             new_state = game.piles.copy()
 
             # When game is over, update Q values with rewards
+            # Variable player here is the AI that made the move that lead to lost game.
+            #  game.player has changed to opposing/winning player (AI) at this point.
+            #  last[game.player] represents the opposing player's last state/actions.
             if game.winner is not None:
                 player.update(state, action, new_state, -1)
                 player.update(
                     last[game.player]["state"],
                     last[game.player]["action"],
                     new_state,
-                    1
+                    1,
                 )
                 break
 
             # If game is continuing, no rewards yet
+            # After the AI has made a move that lead to game continuing, update the
+            #  opposing player's (AI's) last state/action (that is in last[game.player])
+            #  to indicate that their move did not lead to them winning/losing the game.
             elif last[game.player]["state"] is not None:
                 player.update(
                     last[game.player]["state"],
                     last[game.player]["action"],
                     new_state,
-                    0
+                    0,
                 )
 
     print("Done training")
