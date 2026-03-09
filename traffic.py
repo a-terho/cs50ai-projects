@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 EPOCHS = 10
 IMG_WIDTH = 30
 IMG_HEIGHT = 30
-NUM_CATEGORIES = 3
+NUM_CATEGORIES = 43
 TEST_SIZE = 0.4
 
 
@@ -62,20 +62,22 @@ def load_data(data_dir):
     images = []
     labels = []
 
+    print("Loading: ", end="")
+
     # Loop through every category (specified by folder name)
     for label in range(NUM_CATEGORIES):
 
         folder_path = os.path.join(data_dir, str(label))
 
         # Loop through all the files in current category
-        for file_name in os.listdir(folder_path):
+        for filename in os.listdir(folder_path):
 
             # Form a path for one image
-            img_path = os.path.join(folder_path, file_name)
+            img_path = os.path.join(folder_path, filename)
 
             # Read the image as a numpy ndarray
             raw_img = cv2.imread(img_path)
-            assert raw_img is not None, f"file {file_name} could not be read"
+            assert raw_img is not None, f"file {filename} could not be read"
 
             # Resize image to specification
             img = cv2.resize(
@@ -86,6 +88,9 @@ def load_data(data_dir):
             images.append(img)
             labels.append(label)
 
+        print(f"{folder_path} ", end="")
+
+    print("\nLoading finished!")
     return (images, labels)
 
 
@@ -103,7 +108,7 @@ def get_model():
             # Define the input shape (seperated here to avoid Pylance errors)
             tf.keras.layers.Input(shape=(IMG_WIDTH, IMG_HEIGHT, 3)),
 
-            # Add first 2D convolution layer and max-pooling
+            # Add a 2D convolution layer with max-pooling
             tf.keras.layers.Conv2D(
                 filters=32,
                 kernel_size=(3, 3),
@@ -112,20 +117,21 @@ def get_model():
             ),
             tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
 
-            # Add a second convolution layer (without pooling)
+            # Add another 2D convolution layer with max-pooling, now with
+            #  double the # of filters due to previously pooled input data
             tf.keras.layers.Conv2D(
                 filters=64,
                 kernel_size=(3, 3),
                 activation="relu",
                 padding="same",
             ),
-            # tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+            tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
 
-            # Flatten the result
+            # Flatten the result for rest of the network
             tf.keras.layers.Flatten(),
 
-            # Add a hidden layer with dropout
-            tf.keras.layers.Dense(100, activation="relu"),
+            # Add a hidden layer with dropout, again doubling the # of inputs
+            tf.keras.layers.Dense(128, activation="relu"),
             tf.keras.layers.Dropout(0.5),
             
             # Add an output layer
