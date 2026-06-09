@@ -181,7 +181,7 @@ def prob_person_passed_gene(person, permutation):
     either a potential gene is passed unmutated or healthy gene is passed mutated.
     """
 
-    # Assuming person does not have the gene, they have has no potential to pass it on
+    # Assuming person does not have the gene, they have no potential to pass it on
     prob_gene_passing_potential = 0
 
     # But depending on given permutation of genes, there may be potential:
