@@ -143,9 +143,9 @@ def evaluate(labels, predictions):
     num_true_negatives = labels.count(0)
 
     # Using numpy comparison operators
-    equal_values = labels == predictions
-    num_correct_positives = ((predictions == 1) & equal_values).sum()
-    num_correct_negatives = ((predictions == 0) & equal_values).sum()
+    correct_prediction = labels == predictions
+    num_correct_positives = ((predictions == 1) & correct_prediction).sum()
+    num_correct_negatives = ((predictions == 0) & correct_prediction).sum()
 
     # Alternative way by using a loop
     # Calculate the number of correct predictions
