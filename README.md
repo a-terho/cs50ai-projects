@@ -9,7 +9,7 @@ but it did not have much effect. It seems that model was not able create enough 
 for the images with such little convolution.
 
 Running this model with bigger data set did not achieve great accuracy at all. I had to
-add at leas one another convolution layer to achieve any consistently good results with the
+add at least one another convolution layer to achieve any consistently good results with the
 bigger dataset. I also increased the amount of filtering done at each convolution layer.
 
 What I noticed

@@ -1,4 +1,5 @@
+.vscode
 __pycache__
-.vscode/settings.json
-.vscode/launch.json
 gtsrb
+model.keras
+model.h5
