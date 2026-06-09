@@ -189,6 +189,10 @@ def minimax(board):
     best_so_far = None
     for action in actions(board):
 
+        # This part of the function could be implemented also by recursively
+        #  calling the minimax(result(board, action)) directly !! You would
+        #  need to find a way to implement alpha-beta pruning to it though...
+
         # We will assume the opponent wants to play optimally
         # For max player, opponent wants the lowest value possible
         if min_max == "max":
